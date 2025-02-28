@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>夺舍正太模拟器 - 扩展版</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: #ecf0f1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            width: 400px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #f1c40f;
+        }
+
+        .status {
+            margin-bottom: 20px;
+        }
+
+        .status p {
+            margin: 5px 0;
+            font-size: 16px;
+        }
+
+        .status span {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+
+        .actions button {
+            margin: 5px;
+            padding: 10px 20px;
+            font-size: 14px;
+            background: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .actions button:hover {
+            background: #2980b9;
+        }
+
+        .message {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #f1c40f;
+            animation: fadeIn 1s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .ending {
+            font-size: 18px;
+            color: #e74c3c;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>夺舍正太模拟器 - 扩展版</h1>
+        <div class="status" id="status"></div>
+        <div class="actions" id="actions"></div>
+        <div id="message" class="message"></div>
+        <div id="ending" class="ending hidden"></div>
+    </div>
+
+    <script>
+        // 游戏数据
+        const gameData = {
+            attributes: {
+                health: { value: 100, max: 100, label: '健康' },
+                mood: { value: 100, max: 100, label: '心情' },
+                hunger: { value: 0, max: 100, label: '饥饿' },
+                spirit: { value: 0, max: 100, label: '灵力' },
+                evil: { value: 0, max: 100, label: '邪恶值' },
+                intelligence: { value: 0, max: 100, label: '智力' } // 新属性
+            },
+            actions: [
+                {
+                    label: '喂食',
+                    effect: { hunger: -20, mood: 10, health: 5 },
+                    message: '正太吃饱了，心情变好了！'
+                },
+                {
+                    label: '玩耍',
+                    effect: { mood: 20, hunger: 10, health: -5 },
+                    message: '正太玩得很开心！'
+                },
+                {
+                    label: '修炼',
+                    effect: { spirit: 10, mood: -5, hunger: 5 },
+                    message: '正太修炼中，灵力提升了！'
+                },
+                {
+                    label: '蛊惑',
+                    effect: { evil: 15, mood: -10, health: -5 },
+                    message: '你蛊惑了正太，邪恶值增加了！'
+                },
+                {
+                    label: '学习', // 新操作
+                    effect: { intelligence: 10, mood: -5 },
+                    message: '正太学习了，智力提升了！'
+                }
+            ],
+            endings: [
+                {
+                    condition: (attributes) => attributes.spirit.value >= attributes.spirit.max && attributes.evil.value >= attributes.evil.max,
+                    message: '你成功夺舍了正太的身体！'
+                },
+                {
+                    condition: (attributes) => attributes.health.value <= 0 || attributes.mood.value <= 0,
+                    message: '正太崩溃了，夺舍失败！'
+                },
+                {
+                    condition: (attributes) => attributes.hunger.value >= attributes.hunger.max,
+                    message: '正太饿死了，夺舍失败！'
+                },
+                {
+                    condition: (attributes) => attributes.intelligence.value >= 100, // 新结局
+                    message: '正太成为了天才，你无法夺舍！'
+                }
+            ]
+        };
+
+        // 初始化游戏
+        function initGame() {
+            renderStatus();
+            renderActions();
+        }
+
+        // 渲染状态
+        function renderStatus() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = Object.keys(gameData.attributes).map(key => {
+                const attr = gameData.attributes[key];
+                return `<p>${attr.label}: <span id="${key}">${attr.value}</span></p>`;
+            }).join('');
+        }
+
+        // 渲染操作按钮
+        function renderActions() {
+            const actionsDiv = document.getElementById('actions');
+            actionsDiv.innerHTML = gameData.actions.map(action => {
+                return `<button onclick="performAction('${action.label}')">${action.label}</button>`;
+            }).join('');
+        }
+
+        // 执行操作
+        function performAction(actionLabel) {
+            const action = gameData.actions.find(a => a.label === actionLabel);
+            if (action) {
+                Object.keys(action.effect).forEach(key => {
+                    gameData.attributes[key].value += action.effect[key];
+                    gameData.attributes[key].value = Math.max(0, Math.min(gameData.attributes[key].max, gameData.attributes[key].value));
+                });
+                showMessage(action.message);
+                updateStatus();
+                checkEnding();
+            }
+        }
+
+        // 更新状态显示
+        function updateStatus() {
+            Object.keys(gameData.attributes).forEach(key => {
+                document.getElementById(key).textContent = gameData.attributes[key].value;
+            });
+        }
+
+        // 显示消息
+        function showMessage(message) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = message;
+            setTimeout(() => {
+                messageDiv.textContent = '';
+            }, 2000);
+        }
+
+        // 检查结局
+        function checkEnding() {
+            const endingDiv = document.getElementById('ending');
+            const ending = gameData.endings.find(e => e.condition(gameData.attributes));
+            if (ending) {
+                endingDiv.textContent = ending.message;
+                endingDiv.classList.remove('hidden');
+            }
+        }
+
+        // 启动游戏
+        initGame();
+    </script>
+</body>
+</html>
